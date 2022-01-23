@@ -249,8 +249,7 @@ git push -u origin main
 
 ### Check Pipline Status
 * On the Gitlab UI, select your project , CI/CD > Pipelines.
-* If the pipeline status is "Passed," someone else needs to look into your setup.
-
+* If the pipeline status is "Passed" , say hurray, else someone else needs to look into your setup.
 
 
 
