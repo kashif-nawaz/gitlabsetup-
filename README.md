@@ -209,8 +209,8 @@ echo | openssl s_client -CAfile /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.
 ```
 gitlab-runner register --url https://gitlab.knawaz.lab.jnpr/ --registration-token $REGISTRATION_TOKEN --tls-ca-file /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem
 ```
-* With the above command, the URL is already provided as a parameter, so just enter it at the URL prompt.
-* With the above command, the registration-token is already provided as a parameter, so just enter it at the registration-token prompt.
+* With the above command, the URL is already provided as a parameter, so just press enter at the URL prompt.
+* With the above command, the registration-token is already provided as a parameter, so just press enter at the registration-token prompt.
 * Specify an appropriate tag on the prompt (tags are important so that CI/CD jobs can be linked to the registered runner).
 * At the prompt, specify "docker" as the executor type.
 * You must specify the default docker image for CI/CD (I provided alpine: latest).
