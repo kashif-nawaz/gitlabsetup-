@@ -208,6 +208,7 @@ echo | openssl s_client -CAfile /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.
 ```
 
 ## Registering Gitlab-runner with Gitlab
+### Collect Necessary Details from gitlab Project 
 
 * The assumption is that a group is created, a user is mapped to the group, and a project is created under the group.
 * In my case, group name is labs and project name is test.
@@ -217,7 +218,7 @@ echo | openssl s_client -CAfile /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.
 ![project_ci_cd_settings](./Images/project_cicd_setting.png)
 * In the left window, click on the Expand button against Runners.
 ![runner_url_token](./Images/runner_token.png)
-
+### Registration Execution
 ```
 GITLAB_SERVER_URL="https://gitlab.knawaz.lab.jnpr/"
 REGISTRATION_TOKEN="token-obtained-from-gitlab-project"
@@ -238,7 +239,7 @@ gitlab-runner -l debug  register \
 * Change the TAGS as per your will (tags are important so that CI/CD jobs can be linked to the registered runner).
 * Change the docker-image as per your will
 
-## Expected Output of Runner Registration Process
+### Expected Output of Runner Registration Process
 * Following output shows that gitlab-runner registration went successful
 ```
 Runtime platform                                    arch=amd64 os=linux pid=11544 revision=98daeee0 version=14.7.0
@@ -250,7 +251,7 @@ Dialing: tcp gitlab.knawaz.lab.jnpr:443 ...
 Registering runner... succeeded                     runner=U6HBzRUy
 Runner registered successfully. Feel free to start it, but if it's running already the config should be automatically reloaded!
 ```
-## Verfication via CLI
+### Verfication via CLI
 ```
 gitlab-runner list
 Runtime platform                                    arch=amd64 os=linux pid=11656 revision=98daeee0 version=14.7.0
