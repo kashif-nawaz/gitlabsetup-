@@ -63,19 +63,31 @@ firewall-cmd --reload && firewall-cmd --list-all
 ```
 
 ## Setting UP TLS
-
+### CA Root Cert Creation
 ```
 openssl genrsa -out ca.key 2048
 openssl req -new -sha256 -key ca.key -subj "/CN=GITLAB-KNAWAZ-CA" -out ca.csr
 openssl req -x509 -sha256 -days 365 -key ca.key -in ca.csr -out ca.pem
+```
+
+### Server Cert Creation (wihout SAN)
+```
 openssl genrsa -out gitlab.knawaz.lab.jnpr.key 2048
 openssl req -new -sha256 -key gitlab.knawaz.lab.jnpr.key -subj "/CN=gitlab.knawaz.lab.jnpr" -out gitlab.knawaz.lab.jnpr.csr
 openssl x509 -req -in gitlab.knawaz.lab.jnpr.csr -CAcreateserial -CAserial ca.seq -sha256 -days 365 -CA ca.pem -CAkey ca.key -out gitlab.knawaz.lab.jnpr.pem
 ```
+### Server Cert Creation (with SAN)
+* If you need to add SAN in your Server Cert then upgrade opessl to  v[1.1.1](https://gist.github.com/fernandoaleman/5459173e24d59b45ae2cfc618e20fe06)
+
+```
+openssl req -newkey rsa:2048 -nodes -keyout gitlab.knawaz.lab.jnpr.key -subj "/CN=gitlab.knawaz.lab.jnpr" -out gitlab.knawaz.lab.jnpr.csr
+openssl x509 -req -extfile <(printf "subjectAltName=DNS:knawaz.lab.jnpr,DNS:gitlab.knawaz.lab.jnpr") -days 365 -in gitlab.knawaz.lab.jnpr.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out gitlab.knawaz.lab.jnpr.pem 
+```
+
 ## Creating Chain Certificate 
 ```
 cat gitlab.knawaz.lab.jnpr.pem ca.pem > /etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.pem
-cp gitlab.key /etc/gitlab/ssl/
+cp gitlab.knawaz.lab.jnpr.key /etc/gitlab/ssl/
 cp ca.key  ca.pem /etc/gitlab/ssl/
 chmod 600 /etc/gitlab/ssl/*
 ```
