@@ -219,13 +219,44 @@ echo | openssl s_client -CAfile /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.
 ![runner_url_token](./Images/runner_token.png)
 
 ```
-gitlab-runner register --url https://gitlab.knawaz.lab.jnpr/ --registration-token $REGISTRATION_TOKEN --tls-ca-file /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem
+GITLAB_SERVER_URL="https://gitlab.knawaz.lab.jnpr/"
+REGISTRATION_TOKEN="token-obtained-from-gitlab-project"
+TAGS="docker,junos,cli,site,ansible,automation"
+CERT="/etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem"
+
+gitlab-runner -l debug  register \
+  --non-interactive \
+  --tls-ca-file $CERT \
+  --url $GITLAB_SERVER_URL \
+  --registration-token $REGISTRATION_TOKEN \
+  --tag-list v$TAGS \
+  --description "docker_runner" \
+  --executor "docker" \
+  --docker-image ubuntu:latest
 ```
-* With the above command, the URL is already provided as a parameter, so just press enter at the URL prompt.
-* With the above command, the registration-token is already provided as a parameter, so just press enter at the registration-token prompt.
-* Specify an appropriate tag on the prompt (tags are important so that CI/CD jobs can be linked to the registered runner).
-* At the prompt, specify "docker" as the executor type.
-* You must specify the default docker image for CI/CD (I provided alpine: latest).
+
+* Change the TAGS as per your will (tags are important so that CI/CD jobs can be linked to the registered runner).
+* Change the docker-image as per your will
+
+## Expected Output of Runner Registration Process
+* Following output shows that gitlab-runner registration went successful
+```
+Runtime platform                                    arch=amd64 os=linux pid=11544 revision=98daeee0 version=14.7.0
+Checking runtime mode                               GOOS=linux uid=0
+Running in system-mode.
+
+Trying to load /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem ...
+Dialing: tcp gitlab.knawaz.lab.jnpr:443 ...
+Registering runner... succeeded                     runner=U6HBzRUy
+Runner registered successfully. Feel free to start it, but if it's running already the config should be automatically reloaded!
+```
+## Verfication via CLI
+```
+gitlab-runner list
+Runtime platform                                    arch=amd64 os=linux pid=11656 revision=98daeee0 version=14.7.0
+Listing configured runners                          ConfigFile=/etc/gitlab-runner/config.toml
+docker_runner                                       Executor=docker Token=fPBBhTt27N3xRws7hQfP URL=https://gitlab.knawaz.lab.jnpr/
+``
 
 ## Edit Gitlab-runner Config
 * You may need to mount /etc/hosts to allow Docker containers to resolve gitlab urls if your /etc/resolve.conf is unable to do so.
