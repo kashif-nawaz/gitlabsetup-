@@ -257,7 +257,7 @@ gitlab-runner list
 Runtime platform                                    arch=amd64 os=linux pid=11656 revision=98daeee0 version=14.7.0
 Listing configured runners                          ConfigFile=/etc/gitlab-runner/config.toml
 docker_runner                                       Executor=docker Token=fPBBhTt27N3xRws7hQfP URL=https://gitlab.knawaz.lab.jnpr/
-``
+```
 
 ## Edit Gitlab-runner Config
 * You may need to mount /etc/hosts to allow Docker containers to resolve gitlab urls if your /etc/resolve.conf is unable to do so.
