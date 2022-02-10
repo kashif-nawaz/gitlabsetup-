@@ -93,7 +93,9 @@ chmod 600 /etc/gitlab/ssl/*
 ```
 
 ## Updating Config File
+
 * Update / edit following lines in /etc/gitlab/gitlab.rb as per your setup 
+[gitlab config file](https://docs.gitlab.com/omnibus/settings/configuration.html)
 ```
 vim /etc/gitlab/gitlab.rb
 external_url 'https://gitlab.knawaz.lab.jnpr'
@@ -102,7 +104,7 @@ nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.pem"
 nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.key"
 ```
 ## Enabling Docker Registry
-
+[gitlab Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/)
 ```
 ################################################################################
 ## Container Registry settings
@@ -230,7 +232,9 @@ scp gitlab@192.168.3.20:/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.pem /etc/gitlab-r
 ```
 
 ## Verfying Connectivity with Gitlab Docker Registry
-[gitlab Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/)
+* Login to Docker registry with your gitlab user name and passwor could be deploy token or personal token 
+[Deploy tokens](https://docs.gitlab.com/ee/user/project/deploy_tokens/index.html)
+[Personal tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
 ```
 docker login gitlab.knawaz.lab.jnpr:5050 -u knawaz -p Zvoy8TG9LsoRsBXncjbv
 ```
