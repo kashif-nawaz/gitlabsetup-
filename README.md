@@ -147,10 +147,8 @@ https://gitlab-URL-AS-PER-YOUR-DNS-ENTRY
 
 * For the sake of brevity, I am avoiding adding screenshots from my setup.
 * Visit the following link to view the relationship between groups, users, and projects.
+[git lab users](https://docs.gitlab.com/ee/user/group/)
 
-```
-https://docs.gitlab.com/ee/user/group/
-```
 ## Gitlab-runner VM Bring Up (executed from KVM host)
 
 ```
@@ -233,8 +231,8 @@ scp gitlab@192.168.3.20:/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.pem /etc/gitlab-r
 
 ## Verfying Connectivity with Gitlab Docker Registry
 * Login to Docker registry with your gitlab user name and passwor could be deploy token or personal token 
-[Deploy tokens](https://docs.gitlab.com/ee/user/project/deploy_tokens/index.html)
-[Personal tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
+* [Deploy tokens](https://docs.gitlab.com/ee/user/project/deploy_tokens/index.html)
+* [Personal tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
 ```
 docker login gitlab.knawaz.lab.jnpr:5050 -u knawaz -p Zvoy8TG9LsoRsBXncjbv
 ```
