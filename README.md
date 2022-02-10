@@ -101,6 +101,20 @@ nginx['redirect_http_to_https'] = true
 nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.pem"
 nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.key"
 ```
+## Enabling Docker Registry
+
+```
+################################################################################
+## Container Registry settings
+##! Docs: https://docs.gitlab.com/ee/administration/container_registry.html
+################################################################################
+
+registry_external_url 'https://gitlab.knawaz.lab.jnpr:5050'
+registry_nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.pem"
+registry_nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.key"
+firewall-cmd --add-port=5050/tcp --permanent
+firewall-cmd --reload
+```
 
 ## Re-Configure Gitlab
 * Be patient, as this step will take some time
@@ -201,7 +215,27 @@ mkdir -p /etc/gitlab-runner/certs
 scp gitlab@192.168.3.20:/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.pem /etc/gitlab-runner/certs/
 ```
 
-## Verfying Connection to Gitlab Server
+## Updating CA-TRUST 
+[CA-TRUST-UPDATE](https://gitlab.com/gitlab-org/gitlab-runner/-/issues/2659)
+```
+ openssl s_client -connect gitlab.knawaz.lab.jnpr:443 <<<'' | openssl x509 -out /etc/pki/ca-trust/source/anchors/gitlab.knawaz.lab.jnpr.crt
+ update-ca-trust enable
+ chmod u+w $(readlink /etc/pki/tls/certs/ca-bundle.crt)
+ echo >> $(readlink /etc/pki/tls/certs/ca-bundle.crt)
+ echo "gitlab.knawaz.lab.jnpr" >> $(readlink /etc/pki/tls/certs/ca-bundle.crt)
+ cat /etc/pki/ca-trust/source/anchors/gitlab.knawaz.lab.jnpr.crt >> $(readlink /etc/pki/tls/certs/ca-bundle.crt)
+ chmod u-w $(readlink /etc/pki/tls/certs/ca-bundle.crt)
+ systemctl restart gitlab-runner
+ systemctl restart docker
+```
+
+## Verfying Connectivity with Gitlab Docker Registry
+[gitlab Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/)
+```
+docker login gitlab.knawaz.lab.jnpr:5050 -u knawaz -p Zvoy8TG9LsoRsBXncjbv
+```
+
+## Verfying Connection to Gitlab Web Server
 
 ```
 echo | openssl s_client -CAfile /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem -connect gitlab.knawaz.lab.jnpr:443
@@ -211,7 +245,7 @@ echo | openssl s_client -CAfile /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.
 ### Collect Necessary Details from gitlab Project 
 
 * The assumption is that a group is created, a user is mapped to the group, and a project is created under the group.
-* In my case, group name is labs and project name is test.
+* In my case, group name is labs and project name is junos-automation.
 * Click on the Gitlab icon on the left to see a list of your projects.
 ![project_list](./Images/project_list.png)
 * Go to the relevant project where you want to set up CI/CD and click on Setting > CI/CD.
@@ -266,8 +300,8 @@ docker_runner                                       Executor=docker Token=fPBBhT
 ```
 vim /etc/gitlab-runner/config.toml
 [runners.docker]
-    volumes = ["/cache", "/etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem:/etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem:ro"]
-    volumes = ["/cache", "/etc/hosts:/etc/hosts:ro"]
+      volumes = ["/cache", "/etc/ssl/certs:/etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem:ro", "/etc/hosts:/etc/hosts:ro"]
+    
 ```   
 ## Running the Simple Pipeline 
 
