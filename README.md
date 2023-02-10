@@ -19,6 +19,8 @@ qemu-img create -f qcow2 /var/lib/libvirt/images/${node_name}.qcow2 100G
 virt-resize --expand /dev/sda1 ${cloud_image} /var/lib/libvirt/images/${node_name}.qcow2
 
 virt-customize  -a /var/lib/libvirt/images/${node_name}.qcow2   --run-command 'xfs_growfs /'   --root-password password:${root_password}   --hostname ${node_name}.${nodesuffix}   --run-command 'useradd gitlab'   --password gitlab:password:${gitlab_password}   --run-command 'echo "gitlab ALL=(root) NOPASSWD:ALL" | tee -a /etc/sudoers.d/gitlab'   --chmod 0440:/etc/sudoers.d/gitlab   --run-command 'sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config'   --run-command 'systemctl enable sshd'   --run-command 'yum remove -y cloud-init'   --selinux-relabel
+
+virt-install --name ${node_name}   --disk /var/lib/libvirt/images/${node_name}.qcow2   --vcpus=${vcpus}   --ram=${vram}   --network bridge=br-external   --virt-type kvm   --import   --os-variant centos7.0    --graphics vnc   --serial pty   --noautoconsole   --console pty,target_type=virtio
 ```
 ##  Environment Specific Files
 
@@ -63,39 +65,25 @@ firewall-cmd --reload && firewall-cmd --list-all
 ```
 
 ## Setting UP TLS
-### CA Root Cert Creation
+
 ```
 openssl genrsa -out ca.key 2048
 openssl req -new -sha256 -key ca.key -subj "/CN=GITLAB-KNAWAZ-CA" -out ca.csr
 openssl req -x509 -sha256 -days 365 -key ca.key -in ca.csr -out ca.pem
-```
-
-### Server Cert Creation (wihout SAN)
-```
 openssl genrsa -out gitlab.knawaz.lab.jnpr.key 2048
 openssl req -new -sha256 -key gitlab.knawaz.lab.jnpr.key -subj "/CN=gitlab.knawaz.lab.jnpr" -out gitlab.knawaz.lab.jnpr.csr
 openssl x509 -req -in gitlab.knawaz.lab.jnpr.csr -CAcreateserial -CAserial ca.seq -sha256 -days 365 -CA ca.pem -CAkey ca.key -out gitlab.knawaz.lab.jnpr.pem
 ```
-### Server Cert Creation (with SAN)
-* If you need to add SAN in your Server Cert then upgrade opessl to  v[1.1.1](https://gist.github.com/fernandoaleman/5459173e24d59b45ae2cfc618e20fe06)
-
-```
-openssl req -newkey rsa:2048 -nodes -keyout gitlab.knawaz.lab.jnpr.key -subj "/CN=gitlab.knawaz.lab.jnpr" -out gitlab.knawaz.lab.jnpr.csr
-openssl x509 -req -extfile <(printf "subjectAltName=DNS:knawaz.lab.jnpr,DNS:gitlab.knawaz.lab.jnpr") -days 365 -in gitlab.knawaz.lab.jnpr.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out gitlab.knawaz.lab.jnpr.pem 
-```
-
 ## Creating Chain Certificate 
 ```
 cat gitlab.knawaz.lab.jnpr.pem ca.pem > /etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.pem
-cp gitlab.knawaz.lab.jnpr.key /etc/gitlab/ssl/
+cp gitlab.key /etc/gitlab/ssl/
 cp ca.key  ca.pem /etc/gitlab/ssl/
 chmod 600 /etc/gitlab/ssl/*
 ```
 
 ## Updating Config File
-
 * Update / edit following lines in /etc/gitlab/gitlab.rb as per your setup 
-[gitlab config file](https://docs.gitlab.com/omnibus/settings/configuration.html)
 ```
 vim /etc/gitlab/gitlab.rb
 external_url 'https://gitlab.knawaz.lab.jnpr'
@@ -103,8 +91,8 @@ nginx['redirect_http_to_https'] = true
 nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.pem"
 nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.key"
 ```
-## Enabling Docker Registry
-[gitlab Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/)
+## Adding Config to Setup Local Docker Registry
+
 ```
 ################################################################################
 ## Container Registry settings
@@ -117,7 +105,6 @@ registry_nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.
 firewall-cmd --add-port=5050/tcp --permanent
 firewall-cmd --reload
 ```
-
 ## Re-Configure Gitlab
 * Be patient, as this step will take some time
 ```
@@ -147,8 +134,10 @@ https://gitlab-URL-AS-PER-YOUR-DNS-ENTRY
 
 * For the sake of brevity, I am avoiding adding screenshots from my setup.
 * Visit the following link to view the relationship between groups, users, and projects.
-[git lab users](https://docs.gitlab.com/ee/user/group/)
 
+```
+https://docs.gitlab.com/ee/user/group/
+```
 ## Gitlab-runner VM Bring Up (executed from KVM host)
 
 ```
@@ -214,86 +203,52 @@ mkdir -p /etc/gitlab-runner/certs
 ```
 scp gitlab@192.168.3.20:/etc/gitlab/ssl/gitlab.knawaz.lab.jnpr.pem /etc/gitlab-runner/certs/
 ```
-
-## Updating CA-TRUST 
+## Update CA-TRUST in Gitlab-Runner VM 
 [CA-TRUST-UPDATE](https://gitlab.com/gitlab-org/gitlab-runner/-/issues/2659)
-```
- openssl s_client -connect gitlab.knawaz.lab.jnpr:443 <<<'' | openssl x509 -out /etc/pki/ca-trust/source/anchors/gitlab.knawaz.lab.jnpr.crt
- update-ca-trust enable
- chmod u+w $(readlink /etc/pki/tls/certs/ca-bundle.crt)
- echo >> $(readlink /etc/pki/tls/certs/ca-bundle.crt)
- echo "gitlab.knawaz.lab.jnpr" >> $(readlink /etc/pki/tls/certs/ca-bundle.crt)
- cat /etc/pki/ca-trust/source/anchors/gitlab.knawaz.lab.jnpr.crt >> $(readlink /etc/pki/tls/certs/ca-bundle.crt)
- chmod u-w $(readlink /etc/pki/tls/certs/ca-bundle.crt)
- systemctl restart gitlab-runner
- systemctl restart docker
-```
 
-## Verfying Connectivity with Gitlab Docker Registry
-* Login to Docker registry with your gitlab user name and passwor could be deploy token or personal token 
-* [Deploy tokens](https://docs.gitlab.com/ee/user/project/deploy_tokens/index.html)
-* [Personal tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
+```
+  openssl s_client -connect gitlab.knawaz.lab.jnpr:443 <<<'' | openssl x509 -out /etc/pki/ca-trust/source/anchors/gitlab.knawaz.lab.jnpr.crt
+  update-ca-trust enable
+  update-ca-trust extract
+  chmod u+w $(readlink /etc/pki/tls/certs/ca-bundle.crt)
+  echo >> $(readlink /etc/pki/tls/certs/ca-bundle.crt)
+  echo "gitlab.knawaz.lab.jnpr" >> $(readlink /etc/pki/tls/certs/ca-bundle.crt)
+  cat /etc/pki/ca-trust/source/anchors/gitlab.knawaz.lab.jnpr.crt >> $(readlink /etc/pki/tls/certs/ca-bundle.crt)
+  chmod u-w $(readlink /etc/pki/tls/certs/ca-bundle.crt)
+  systemctl restart gitlab-runner
+  systemctl restart docker
+```
+## Verfying Connection to Gitlab Docker Registry
+[gitlab Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/)
 ```
 docker login gitlab.knawaz.lab.jnpr:5050 -u knawaz -p Zvoy8TG9LsoRsBXncjbv
-```
-
-## Verfying Connection to Gitlab Web Server
+``
+## Verfying Connection to Gitlab Server
 
 ```
 echo | openssl s_client -CAfile /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem -connect gitlab.knawaz.lab.jnpr:443
 ```
 
 ## Registering Gitlab-runner with Gitlab
-### Collect Necessary Details from gitlab Project 
 
 * The assumption is that a group is created, a user is mapped to the group, and a project is created under the group.
-* In my case, group name is labs and project name is junos-automation.
+* In my case, group name is labs and project name is test.
 * Click on the Gitlab icon on the left to see a list of your projects.
 ![project_list](./Images/project_list.png)
 * Go to the relevant project where you want to set up CI/CD and click on Setting > CI/CD.
 ![project_ci_cd_settings](./Images/project_cicd_setting.png)
 * In the left window, click on the Expand button against Runners.
 ![runner_url_token](./Images/runner_token.png)
-### Registration Execution
-```
-GITLAB_SERVER_URL="https://gitlab.knawaz.lab.jnpr/"
-REGISTRATION_TOKEN="token-obtained-from-gitlab-project"
-TAGS="docker,junos,cli,site,ansible,automation"
-CERT="/etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem"
 
-gitlab-runner -l debug  register \
-  --non-interactive \
-  --tls-ca-file $CERT \
-  --url $GITLAB_SERVER_URL \
-  --registration-token $REGISTRATION_TOKEN \
-  --tag-list v$TAGS \
-  --description "docker_runner" \
-  --executor "docker" \
-  --docker-image ubuntu:latest
 ```
 
-* Change the TAGS as per your will (tags are important so that CI/CD jobs can be linked to the registered runner).
-* Change the docker-image as per your will
-
-### Expected Output of Runner Registration Process
-* Following output shows that gitlab-runner registration went successful
+gitlab-runner register --url https://gitlab.knawaz.lab.jnpr/ --registration-token $REGISTRATION_TOKEN --tls-ca-file /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem
 ```
-Runtime platform                                    arch=amd64 os=linux pid=11544 revision=98daeee0 version=14.7.0
-Checking runtime mode                               GOOS=linux uid=0
-Running in system-mode.
-
-Trying to load /etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem ...
-Dialing: tcp gitlab.knawaz.lab.jnpr:443 ...
-Registering runner... succeeded                     runner=U6HBzRUy
-Runner registered successfully. Feel free to start it, but if it's running already the config should be automatically reloaded!
-```
-### Verfication via CLI
-```
-gitlab-runner list
-Runtime platform                                    arch=amd64 os=linux pid=11656 revision=98daeee0 version=14.7.0
-Listing configured runners                          ConfigFile=/etc/gitlab-runner/config.toml
-docker_runner                                       Executor=docker Token=fPBBhTt27N3xRws7hQfP URL=https://gitlab.knawaz.lab.jnpr/
-```
+* With the above command, the URL is already provided as a parameter, so just press enter at the URL prompt.
+* With the above command, the registration-token is already provided as a parameter, so just press enter at the registration-token prompt.
+* Specify an appropriate tag on the prompt (tags are important so that CI/CD jobs can be linked to the registered runner).
+* At the prompt, specify "docker" as the executor type.
+* You must specify the default docker image for CI/CD (I provided alpine: latest).
 
 ## Edit Gitlab-runner Config
 * You may need to mount /etc/hosts to allow Docker containers to resolve gitlab urls if your /etc/resolve.conf is unable to do so.
@@ -302,8 +257,8 @@ docker_runner                                       Executor=docker Token=fPBBhT
 ```
 vim /etc/gitlab-runner/config.toml
 [runners.docker]
-      volumes = ["/cache", "/etc/ssl/certs:/etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem:ro", "/etc/hosts:/etc/hosts:ro"]
-    
+    volumes = ["/cache", "/etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem:/etc/gitlab-runner/certs/gitlab.knawaz.lab.jnpr.pem:ro"]
+    volumes = ["/cache", "/etc/hosts:/etc/hosts:ro"]
 ```   
 ## Running the Simple Pipeline 
 
@@ -332,6 +287,17 @@ git push -u origin main
 * If the pipeline status is "Passed" , say hurray, else someone else needs to look into your setup.
 
 
+## Ref
+
+(https://gitlab.com/gitlab-org/gitlab-runner/-/issues/2659)
+(https://gitlab.com/gitlab-org/gitlab-runner/-/issues/2950)
+(https://gitlab.com/gitlab-org/gitlab-runner/-/issues/27062)
+(https://docs.gitlab.com/runner/configuration/tls-self-signed.html#supported-options-for-self-signed-certificates-targeting-the-gitlab-server)
+(https://docs.gitlab.com/runner/configuration/tls-self-signed.html)
+(https://docs.gitlab.com/omnibus/settings/nginx.html#update-the-ssl-certificates)
+(https://docs.gitlab.com/omnibus/settings/ssl.html)
+(https://docs.gitlab.com/runner/executors/)
+(https://www.howtoforge.com/tutorial/how-to-install-and-configure-gitlab-ce-on-centos-7/)
 
 
 
